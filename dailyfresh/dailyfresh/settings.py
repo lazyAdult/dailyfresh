@@ -83,6 +83,8 @@ WSGI_APPLICATION = 'dailyfresh.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/2.0/ref/settings/#databases
 
+
+
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
@@ -90,10 +92,14 @@ DATABASES = {
         'USER': 'root',
         'PASSWORD': 'mysql1234',
         'PORT': '3306',
-        'HOST': '192.168.1.4'
+        'HOST': '127.0.0.1'
     }
 }
 
+# django认证系统使用的模型类 要在迁移文件生成之前指明,不然影响后续代码
+AUTH_USER_MODEL = 'user.User'
+# 使用django自带的authenticate()方法时验证user
+AUTHENTICATION_BACKENDS = ['django.contrib.auth.backends.AllowAllUsersModelBackend']
 
 # Password validation
 # https://docs.djangoproject.com/en/2.0/ref/settings/#auth-password-validators
@@ -132,7 +138,7 @@ USE_TZ = False
 # https://docs.djangoproject.com/en/2.0/howto/static-files/
 
 STATIC_URL = '/static/'
-STATICFILES_DIR = [os.path.join(BASE_DIR, "statics"), ]
+STATICFILES_DIRS = [os.path.join(BASE_DIR, "statics"), ]
 
 # 富文本编辑器配置
 TINYMCE_DEFAULT_CONFIG = {
@@ -141,6 +147,40 @@ TINYMCE_DEFAULT_CONFIG = {
     'height': 400,
 }
 
-# 修改django认证系统使用的模型类
-AUTH_USER_MODEL = 'user.User'
 
+
+# 邮箱的配置文件
+
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+# smpt服务地址
+EMAIL_HOST = 'smtp.163.com'
+EMAIL_PORT = 25
+# 发送邮件的邮箱
+EMAIL_HOST_USER = '18638321931@163.com'
+# 邮箱中设置的客户端授权密码
+EMAIL_HOST_PASSWORD = 'tang195810'
+# 收件人看到的发件人
+# DEFAULT_FROM = '天天生鲜<18638321931@163.com>'
+
+# 设置django的redis缓存
+CACHES = {
+    'default': {
+            'BACKEND': 'django_redis.cache.RedisCache',
+            'LOCATION': 'redis://127.0.0.1:6379/2',
+            "OPTIONS": {
+                    "CLIENT_CLASS": "django_redis.client.DefaultClient",
+},
+    }
+}
+REDIS_TIME = 7*24*60*60
+CUBES_REDIS_TIMEOUT = 60*60
+NEVER_REDIS_TIMEOUT = 365*24*60*60
+
+# 设置缓存存储session，此时mysql中的django_session将不再存储session
+SESSION_ENGINE = "django.contrib.sessions.backends.cache"
+# 与CACHES中的default对应
+SESSION_CACHE_ALIAS = "default"
+# session在cookie中的保存时间
+SESSION_COOKIE_AGE = 60*30
+# 设置session在浏览器关闭时过期
+SESSION_EXPIRE_AT_BROWSER_CLOSE = True
