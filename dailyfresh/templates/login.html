@@ -1,15 +1,20 @@
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
-<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en">
+
+{% extends 'base.html' %}
 {% load static %}
-<head>
-	<meta http-equiv="Content-Type" content="text/html;charset=UTF-8">
-	<title>天天生鲜-登录</title>
-	<link rel="stylesheet" type="text/css" href="{% static 'css/reset.css' %}">
-	<link rel="stylesheet" type="text/css" href="{% static 'css/main.css' %}">
-</head>
-<body>
+
+{% block title %}
+天天生鲜-登录
+{% endblock %}
+
+{% block header_con %}
+{% endblock %}
+
+{% block serch_bar %}
+{% endblock %}
+
+{% block body %}
 	<div class="login_top clearfix">
-		<a href="index.html" class="login_logo"><img src="{% static 'images/logo02.png' %}"></a>
+		<a href="{% url 'goods:index' %}" class="login_logo"><img src="{% static 'images/logo02.png' %}"></a>
 	</div>
 
 	<div class="login_form_bg">
@@ -19,9 +24,11 @@
 			<div class="login_form fr">
 				<div class="login_title clearfix">
 					<h1>用户登录</h1>
-					<a href="#">立即注册</a>
+					<a href="{% url 'user:register' %}">立即注册</a>
 				</div>
 				<div class="form_input">
+                    {# 使用post提交的时候默认提交到浏览器显示的地址页面 使用django自带的login_required在验证用户没有登录的情况下跳转到登录页面并且把用户访问的页面当做参数传入 #}
+                    {#  如果使用action就会在使用login_required方法的时候传入到提交的页面  #}
 					<form method="post">
                         {% csrf_token %}
 						<input type="text" name="username" value="{{ username }}" class="name_input" placeholder="请输入用户名">
@@ -40,19 +47,5 @@
 		</div>
 	</div>
     {{ error_message }}
-	<div class="footer no-mp">
-		<div class="foot_link">
-			<a href="#">关于我们</a>
-			<span>|</span>
-			<a href="#">联系我们</a>
-			<span>|</span>
-			<a href="#">招聘人才</a>
-			<span>|</span>
-			<a href="#">友情链接</a>		
-		</div>
-		<p>CopyRight © 2016 北京天天生鲜信息技术有限公司 All Rights Reserved</p>
-		<p>电话：010-****888    京ICP备*******8号</p>
-	</div>
-	
-</body>
-</html>
+{% endblock %}
+

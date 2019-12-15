@@ -1,16 +1,20 @@
 import re
 
-from django.contrib.auth import authenticate, login
+from django.contrib.auth import authenticate, login, logout
+from utils.mixin import LoginRequiredMixin
 from django.http import HttpResponse
 from django.shortcuts import render, redirect
 
 # Create your views here.
 from django.urls import reverse
 from django.views import View
+from django_redis import get_redis_connection
 from itsdangerous import SignatureExpired
+
+from apps.goods.models import GoodsSKU
 from celery_tasks import tasks
 from apps.user.diy_views import HidenMessage
-from apps.user.models import User
+from apps.user.models import User, Address
 from dailyfresh import settings
 
 
@@ -37,7 +41,7 @@ class RegisterHandle(View):
             error_message = "注册信息不完整"
             return render(request, 'register.html', locals())
         # 校验邮箱
-        if not re.match(r'^[a-z0-9][\w\.\-]*@[a-z0-9\-]+(\.[a-z]{2,5}){1,2}$', email):
+        if not re.match(r'^[a-z0-9][\w\\.\-]*@[a-z0-9\-]+(\.[a-z]{2,5}){1,2}$', email):
             error_message = "邮箱信息格式不正确"
             return render(request, 'register.html', locals())
         if allow != 'on':
@@ -72,7 +76,7 @@ class RegisterHandle(View):
         # 使用它的delay方法就可以实现
         tasks.send_mails.delay(email, settings.EMAIL_HOST_USER, username, token)
         # 返回应答跳转到登录页面
-        return render(request, 'login.html')
+        return redirect(reverse("user:login"))
 
 
 def comfire_mail(request, code):
@@ -106,9 +110,11 @@ class LoginHandle(View):
 
         if not all([username, password]):
             error_message = "输入的信息不完整"
+            return render(request, 'login.html', locals())
         # 业务处理:登录验证(使用django自带的authenticate方法 配合login()函数进行记录session)
         # 需要在setting设置AUTHENTICATION_BACKENDS = ['django.contrib.auth.backends.AllowAllUsersModelBackend']不然一直提示为None
         user = authenticate(username=username, password=password)
+
         if user is not None:
             # 用户名密码正确
             if user.is_active:
@@ -118,8 +124,29 @@ class LoginHandle(View):
                 # 框架来将用户的ID保存到session中
                 login(request, user)
 
+                # 记录用户登录状态 当用户登录以后添加islogin字段在session中
+                request.session["is_login"] = True
+                # flush()方法是比较安全的一种做法,而且一次性将session中的所有内容全部清空,确保不留后患.但也有不好的地方,那就是如果你在session中
+                # 删除数据库中sessionid对应的值
+                # request.session.clear()
+                # 删除session中指定的键及值,在存储中只删除某个键及对应的某个值
+                # del request.session['键']
+                # 设置会话超时时间,如果没有指定过期时间则两个星期后过期
+                # 如果value是一个整数,会话的session_id cookie将在value秒没有活动后过期
+                # 如果value为0,那么用户会话的session_id cookie将在用户的浏览器关闭以后过期
+                # 如果value为None,那么会话的session_id cookie两周之后过期
+                # request.session.set_expiry(value)
+                # 夹带了一点私货,也会一并删除,这一点一定要注意
+                request.session.set_expiry(0)
+                # 使用post提交的时候默认提交到浏览器显示的地址页面
+                # 使用django自带的login_required在验证用户没有登录的情况下跳转到登录页面并且把用户访问的页面当做参数传入
+                # 我们可以设置来返回到用户登录前的页面用户验证在url哪里需要在settings设置LOGIN_URL = "/user/login"
+                # login_required()的方法的url显示127.0.0.1:8000/user/login/?next=/order/ 登录以后就会跳转到127.0.0.1:8000/user/order/ 页面
+                # 获取next的值,如果没有使用默认的reverse('goods:index')生成首页路径
+                next_url = request.GET.get('next', reverse('goods:index'))
+
                 # 跳转到首页
-                response = redirect(reverse('goods:index'))
+                response = redirect(next_url)
 
                 # 判断用户是否需要记住用户名
                 remember = request.POST.get('remember')
@@ -133,14 +160,154 @@ class LoginHandle(View):
                 return response
             else:
                 error_message = "账户未激活"
+                return render(request, 'login.html', locals())
         else:
             error_message = "用户名或密码错误"
-        return render(request, 'login.html', locals())
+            return render(request, 'login.html', locals())
 
     def get(self, request):
+        # 查看用户登录状态,如果用户的session中包含islogin字段转到首页
+        if request.session.has_key('is_login'):
+            return redirect(reverse('goods:index'))
         # 因为是get请求所以在get方式里面设置
         if "username" in request.COOKIES:
             username = request.COOKIES["username"]
         else:
             username = ""
         return render(request, 'login.html', locals())
+
+
+# 用户退出
+class LogoutHandle(View):
+
+    def get(self, request):
+        # django为我们封装了一个注销登录的方法而且在注销登录的同时会将session的数据清除
+        # 如果没有登录也不会报错
+        logout(request)
+        return redirect(reverse('goods:index'))
+
+
+# 对于多继承首先在自己中查找再去第一个类中查找,直到查找第一个没有,因为在第一个中调用类方法就会去第二个查找
+class UserInfoView(LoginRequiredMixin, View):
+    """用户中心-信息页
+    继承自LoginRequiredMixin这个调用login_required()方法的类就可以在路径里面直接写
+    UserOrderView.as_view()不需要再次使用login_required()的方法
+    """
+
+    def get(self, request):
+        """显示用户信息信息"""
+        # 传入一个值来控制前端页面的active显示
+        # 对于用户是否登录django有一个验证方法 django使用会话和中间件来拦截request对象到认证系统中
+        # 他们在每个请求上提供request.user属性,表示当前的用户,如果当前用户没有登入,该属性设置成AnonymousUser的一个实例,否则它将是User的实例
+        # 除了你给模板文件传递的模板变量之外,Django框架会把request.user也传给模板文件
+        # 验证是否登录
+        # request.user.is_authenticated()
+        # 这个user要放到前面不然在用户提交的错误的时候没有address传入到前端页面
+        # 用户在验证成功登录以后request自动包含user
+        # 设置一个参数来定位用户点击页面传入到前端页面
+        page = "user"
+        user = request.user
+        # try:
+        #     # 验证用户是否已经有默认收货地址
+        #     address = Address.objects.get(user=user, is_default=True)
+        #
+        # except Address.DoesNotExist:
+        #     # 没有默认收货地址
+        #     address = None
+        # 在Address类里面封装了一个方法get_default_address
+        address = Address.objects.get_default_address(user)
+
+        # 获取用户浏览记录 正常的python与redis交互
+        # from redis import StrictRedis
+        # sr = StrictRedis(host="127.0.0.1:6379", port=6379, db=2)
+        # sr.get()
+        # 使用django-redis为我们封装好了一个方法返回StrictRedis对象
+        # 在setting中我们使用缓存定义了SESSION_CACHE_ALIAS = "default",django就会自动帮我们链接到default定义的数据库中
+        con = get_redis_connection('default')
+        # 定义一个键值
+        history_key = "history_%s" % user.id
+        # 获取用户浏览的前5个商品的记录我们将浏览记录使用redis的list格式保存,如果美誉返回False
+        sku_ids = con.lrange(history_key, 0, 4)
+        # 定义一个列表记录用户的浏览记录,因为直接返回数据库的记录是按照id的循序返回的
+        goods_li = []
+
+        # 从数据库根据用户的sku_ids来查找对应的数据
+        for id in sku_ids:
+            goods = GoodsSKU.objects.get(id=id)
+            goods_li.append(goods)
+
+        # context = {
+        #     'address': address,
+        #     'goods_li': goods_li,
+        # }
+        return render(request, 'user_center_info.html', locals())
+
+
+class UserOrderView(LoginRequiredMixin, View):
+    """用户中心-订单页"""
+
+    def get(self, request):
+        """显示用户订单信息信息"""
+        page = "order"
+        return render(request, 'user_center_order.html', locals())
+
+
+class AddressView(LoginRequiredMixin, View):
+    """用户中心-地址页"""
+
+    def post(self, request):
+        """添加收货地址"""
+        # 获取用户输入
+        receiver = request.POST.get('receiver')
+        addr = request.POST.get('addr')
+        zip_code = request.POST.get('zip_code')
+        phone = request.POST.get('phone')
+        # 这个user要放到前面不然在用户提交的错误的时候没有address传入到前端页面
+        # 用户在验证成功登录以后request自动包含user
+        # 设置一个参数来定位用户点击页面传入到前端页面
+        page = "address"
+        user = request.user
+        # try:
+        #     # 验证用户是否已经有默认收货地址
+        #     address = Address.objects.get(user=user, is_default=True)
+        #
+        # except Address.DoesNotExist:
+        #     # 没有默认收货地址
+        #     address = None
+        # 在Address类里面封装了一个方法get_default_address
+        address = Address.objects.get_default_address(user)
+        # 验证用户是否合法
+        if not all([receiver, addr, phone]):
+            error_message = "信息填写不正确"
+            return render(request, 'user_center_site.html', locals())
+
+        # 如果匹配不到就会返回None,相当于None == None,如果有值就是False
+        if not re.match(r"^1[3-9][0-9]{9}$", phone):
+            error_message = "电话号码输入错误"
+            return render(request, 'user_center_site.html', locals())
+
+        if address:
+            is_default = False
+        else:
+            is_default = True
+        # 保存用户对于地址的输入
+        Address.objects.create(user=user, receiver=receiver,
+                               addr=addr, zip_code=zip_code,
+                               phone=phone, is_default=is_default)
+
+        return redirect(reverse("user:address"))
+
+    def get(self, request):
+        """显示用户地址信息信息"""
+        page = "address"
+        # 用户在验证成功登录以后request自动包含user
+        user = request.user
+        # try:
+        #     # 验证用户是否已经有默认收货地址
+        #     address = Address.objects.get(user=user, is_default=True)
+        #
+        # except Address.DoesNotExist:
+        #     # 没有默认收货地址
+        #     address = None
+        address = Address.objects.get_default_address(user)
+        return render(request, 'user_center_site.html', locals())

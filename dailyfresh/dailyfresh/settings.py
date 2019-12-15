@@ -138,7 +138,7 @@ USE_TZ = False
 # https://docs.djangoproject.com/en/2.0/howto/static-files/
 
 STATIC_URL = '/static/'
-STATICFILES_DIRS = [os.path.join(BASE_DIR, "statics"), ]
+STATICFILES_DIRS = [os.path.join(BASE_DIR, "static"), ]
 
 # 富文本编辑器配置
 TINYMCE_DEFAULT_CONFIG = {
@@ -184,3 +184,16 @@ SESSION_CACHE_ALIAS = "default"
 SESSION_COOKIE_AGE = 60*30
 # 设置session在浏览器关闭时过期
 SESSION_EXPIRE_AT_BROWSER_CLOSE = True
+
+# 配置url地址为了方便调用Django自带的用户登录验证方法
+LOGIN_URL = "/user/login"
+
+# 设置django的文件存储类,调用上传文件和打开文件的方法 默认:django.core.files.storage.FileSystemStorage
+DEFAULT_FILE_STORAGE = "utils.fdfs.storage.FfdsStorage"
+
+
+# 配置自定义文件存储配置中设置fdfs使用client.config文件路径
+FDFS_CLIENT_CONF = './utils/fdfs/client.conf'
+
+# 配置自定义文件存储配置中设置存储在服务器上nginx的IP和端口号
+FDFS_URL = 'http://192.168.1.17:8888/'

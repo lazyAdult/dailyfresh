@@ -42,7 +42,7 @@ class GoodsSKU(BaseModel):
     )
 
     type = models.ForeignKey('GoodsType', on_delete=models.CASCADE, verbose_name='商品种类')
-    goods_spu = models.ForeignKey('GoodsSPU',on_delete=models.CASCADE, verbose_name='商品SPU')
+    goods_spu = models.ForeignKey('GoodsSPU', on_delete=models.CASCADE, verbose_name='商品SPU')
     name = models.CharField(max_length=20, verbose_name='商品名称')
     desc = models.CharField(max_length=256, verbose_name='商品简介')
     price = models.DecimalField(max_digits=10, decimal_places=2, verbose_name='商品价格')
@@ -112,6 +112,7 @@ class IndexTypeGoodsBanner(BaseModel):
 
 class IndexPromotionBanner(BaseModel):
     """首页促销活动模型类"""
+    # 可以使用UrlField会对存入的字符串进行url校验,校验不通过就会添加不了
     url = models.CharField(max_length=256, verbose_name='活动链接')
     name = models.CharField(max_length=20, verbose_name='活动名称')
     image = models.ImageField(upload_to='goods', verbose_name='图片路径')
