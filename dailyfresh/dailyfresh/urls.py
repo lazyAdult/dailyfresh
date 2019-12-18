@@ -18,6 +18,7 @@ from django.urls import path, include
 
 urlpatterns = [
     path('admin/', admin.site.urls),
+    path('search/', include("haystack.urls")),      # 全文检索框架
     path('tinymec', include('tinymce.urls')),    # 富文本编辑器
     path('user/', include(('user.urls', 'user'), namespace="user")),   # 用户模块
     path('cart/', include(('cart.urls', 'cart'), namespace="cart")),   # 购物车模块

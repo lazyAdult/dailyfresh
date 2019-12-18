@@ -26,7 +26,8 @@ class AddressManager(models.Manager):
             # 验证用户是否已经有默认收货地址
             address = self.get(user=user, is_default=True)
 
-        except Exception("地址错误"):
+        # 使用self.model.DoesNotExist来创建错误
+        except self.model.DoesNotExist:
             # 没有默认收货地址
             address = None
 

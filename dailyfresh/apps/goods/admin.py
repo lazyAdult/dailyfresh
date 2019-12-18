@@ -28,36 +28,36 @@ class BaseModuleAdmin(admin.ModelAdmin):
 
 @admin.register(GoodsType)
 class GoodsTypeAdmin(BaseModuleAdmin):
-    pass
+    list_display = ["id", "name", "logo", "image"]
 
 
 @admin.register(IndexGoodsBanner)
 class IndexGoodsBannerAdmin(BaseModuleAdmin):
-    pass
+    list_display = ["id", "sku", "image", "index"]
 
 
 @admin.register(IndexPromotionBanner)
 class IndexPromotionBannerAdmin(BaseModuleAdmin):
-    pass
+    list_display = ["id", "url", "name", "image", "index"]
 
 
 @admin.register(IndexTypeGoodsBanner)
 class IndexTypeGoodsBannerAdmin(BaseModuleAdmin):
-    pass
+    list_display = ["id", "type", "sku", "display_type", "index"]
 
 
 @admin.register(GoodsSKU)
 class GoodsSKUAdmin(BaseModuleAdmin):
-    pass
+    list_display = ["id", "type", "goods_spu", "name", "desc", "price", "unite", "image", "stock", "sales", "status"]
 
 
 @admin.register(GoodsSPU)
 class GoodsSPUAdmin(BaseModuleAdmin):
-    pass
+    list_display = ["id", "name", "detail"]
 
 
 @admin.register(GoodsImage)
 class GoodsImageAdmin(BaseModuleAdmin):
-    pass
+    list_display = ["id", "sku", "image"]
 
 

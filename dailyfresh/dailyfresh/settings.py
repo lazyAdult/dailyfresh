@@ -42,6 +42,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'tinymce',   # 富文本编辑器
+    'haystack',   # 注册全文检索框架
     'user.apps.UserConfig',  # 注册子应用
     'cart.apps.CartConfig',
     'order.apps.OrderConfig',
@@ -197,3 +198,23 @@ FDFS_CLIENT_CONF = './utils/fdfs/client.conf'
 
 # 配置自定义文件存储配置中设置存储在服务器上nginx的IP和端口号
 FDFS_URL = 'http://192.168.1.17:8888/'
+
+
+# 全文检索框架的配置(haystack)
+HAYSTACK_CONNECTIONS = {
+    'default': {
+        # 选择引擎(haystock包内的backend后端文件夹选中whoosh的相关配置文件的Engine函数)
+        'ENGINE': 'haystack.backends.whoosh_cn_backend.WhooshEngine',
+
+        # 索引文件放置路径
+        'PATH': os.path.join(BASE_DIR, 'whoosh_index'),
+    }
+}
+# 设置即时生成索引(haystock包下,signal(标识)索引文件生成时间为,即时生成)
+HAYSTACK_SIGNAL_PROCESSOR = 'haystack.signals.RealtimeSignalProcessor'
+
+# 指定搜索结果每页显示的条数
+HAYSTACK_SEARCH_RESULTS_PER_PAGE = 1
+
+# 设置url路径结尾不是/
+# APPEND_SLASH=False

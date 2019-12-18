@@ -16,7 +16,7 @@ urlpatterns = [
     # path('address/', login_required(AddressView.as_view()), name="address"),      # 用户地址页面
     # 使用LoginRequiredMixin在mixin中定义的方法就可以直接写
     path('', UserInfoView.as_view(), name="user"),      # 用户信息-信息页
-    path('info/', UserOrderView.as_view(), name="order"),   # 用户订单页面
+    re_path('^order/(?P<page_num>\d+)$', UserOrderView.as_view(), name="order"),   # 用户订单页面
     path('address/', AddressView.as_view(), name="address"),      # 用户地址页面
 
 ]

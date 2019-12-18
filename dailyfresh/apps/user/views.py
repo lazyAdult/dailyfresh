@@ -1,6 +1,9 @@
 import re
 
 from django.contrib.auth import authenticate, login, logout
+from django.core.paginator import Paginator
+
+from apps.order.models import OrderInfo, OrderGoods
 from utils.mixin import LoginRequiredMixin
 from django.http import HttpResponse
 from django.shortcuts import render, redirect
@@ -152,7 +155,7 @@ class LoginHandle(View):
                 remember = request.POST.get('remember')
                 # checkbox点击时的值是on
                 if remember == "on":
-                    # 设置cookie记住用户名('键',值,过期时间)
+                    # 设置cookie记住用户名('键',值,过期时间)response可以使HttpResponse和JsonResponse的对象
                     response.set_cookie('username', username, max_age=7*24*3600)
                 else:
                     # 如果用户再次登录时不需要记住就将cookie删除
@@ -246,10 +249,67 @@ class UserInfoView(LoginRequiredMixin, View):
 class UserOrderView(LoginRequiredMixin, View):
     """用户中心-订单页"""
 
-    def get(self, request):
+    def get(self, request, page_num):
         """显示用户订单信息信息"""
+        # 获取用户订单
+        user = request.user
+        orders = OrderInfo.objects.filter(user=user)
+
+        # 遍历订单获取商品信息
+        for order in orders:
+            order_skus = OrderGoods.objects.filter(order=order.order_id).order_by("-create_time")
+
+            # 遍历订单商品获取商品信息
+            for order_sku in order_skus:
+                # 计算商品小计
+                amount = order_sku.price * order_sku.count
+                # 动态给订单商品添加小计
+                order_sku.amount = amount
+            # 动态给订单增加属性,保存订单商品信息
+            order.order_skus = order_skus
+            # todo: 动态的给order属性添加一个商品订单状态
+            order.order_status_name = OrderInfo.ORDER_STATUS_ENUM[order.order_status]
+        # 获取分页参数:可迭代对象,分页数
+        paginator = Paginator(orders, 2)
+
+        # 校验页码
+        try:
+            page_num = int(page_num)
+        except Exception as e:
+            page_num = 1
+        # 判断分页是否大于总页数
+        if page_num > paginator.num_pages:
+            page_num = 1
+
+        # 获取page页的Page对象
+        skus_page = paginator.page(page_num)
+
+        # todo: 获取页码控制
+        # 自定义页码的控制,页面上最多显示5页
+        num_pages = paginator.num_pages
+        # 1.总页数小于5页,页面上显示所有页码
+        if num_pages < 5:
+            pages = range(1, num_pages + 1)
+        # 2.如果当前页是前3页显示前5页
+        elif page_num <= 3:
+            pages = range(1, 6)
+        # 3.如果当前页面是后3页显示后5页
+        elif num_pages - page_num <= 2:
+            pages = range(num_pages - 4, num_pages + 1)
+        else:
+            # 正常情况下
+            pages = range(page_num - 2, page_num + 3)
         page = "order"
-        return render(request, 'user_center_order.html', locals())
+
+        # 组织参数
+        context = {
+            "orders": orders,
+            "page": page,
+            "skus_page": skus_page,
+            "pages": pages,
+        }
+        return render(request, "user_center_order.html", context)
+
 
 
 class AddressView(LoginRequiredMixin, View):

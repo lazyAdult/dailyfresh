@@ -59,8 +59,8 @@
 		<div class="list_title clearfix">
 			<h3 class="fl" id="model01">{{ type.name }}</h3>
 			<div class="subtitle fl">
-				<span>|</span>
                 {% for banner in type.title_banners %}
+                 <span>|</span>
                 <a href="{% url 'goods:detail' banner.sku.id %}">{{ banner.sku.name }}</a>
                 {% endfor %}
 			</div>

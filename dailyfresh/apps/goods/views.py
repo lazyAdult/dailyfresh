@@ -1,4 +1,5 @@
 from django.core.cache import cache
+from django.core.paginator import Paginator
 from django.shortcuts import render, redirect
 
 # Create your views here.
@@ -88,7 +89,7 @@ class DetailHandle(View):
         cart_count = 0
         if user.is_authenticated:
             conn = get_redis_connection("default")
-            cart_key = "key_%d" % user.id
+            cart_key = "cart_%d" % user.id
             cart_count = conn.hlen(cart_key)
 
             # 添加用户浏览记录
@@ -106,8 +107,112 @@ class DetailHandle(View):
             'sku': sku, 'types': types,
             'sku_order': sku_orders,
             'new_skus': new_skus,
-            'cart_cont': cart_count,
-            "same_spu_skus": same_spu_skus
+            "same_spu_skus": same_spu_skus,
+            "cart_count": cart_count,
         }
 
         return render(request, 'detail.html', context)
+
+
+class ListHandle(View):
+    """列表类"""
+    # 参数设置
+    # 种类id 页码 排序方式
+    # restful api -->url命名规则 请求一种资源
+    # /list?type_id=种类id&page=页码&sort=排序方式
+    # /list/种类id/页码/排序方式
+    # /list/种类id/页码?sort=排序方式
+    def get(self, request, type_id, page):
+        """显示列表页"""
+        # 获取种类信息
+        try:
+            type = GoodsType.objects.get(id=type_id)
+        except GoodsType.DoesNotExist:
+            # 种类不存在
+            return redirect(reverse("goods:index"))
+        # 获取商品分类信息
+        types = GoodsType.objects.all()
+
+        # 获取排序方式
+        # sort = default 按照默认id排序
+        # sort = price 按照商品价格排序
+        # sort = hot 按照商品销量排序
+        sort = request.GET.get("sort")
+
+        if sort == "price":
+            skus = GoodsSKU.objects.filter(type=type).order_by("price")
+        elif sort == "hot":
+            skus = GoodsSKU.objects.filter(type=type).order_by("-sales")
+        else:
+            # 对于sort没有设置时显示为None
+            sort = 'default'
+            skus = GoodsSKU.objects.filter(type=type).order_by("-id")
+
+        # 对数据进行分页我们使用django封装好的Paginator()类来实现
+        # 传入一个可以遍历的对象,一个页面显示多少内容
+        paginator = Paginator(skus, 1)
+
+        # 获取page页内容
+        try:
+            # 防止恶意输入
+            page = int(page)
+        except Exception as e:
+            page = 1
+
+        # Paginator()类的实例对象.num_pages返回当前分页的总共页码
+        if page > paginator.num_pages:
+            page = 1
+
+        # 获取第page页的Page实例对象
+        skus_page = paginator.page(page)
+
+        # 自定义页码的控制,页面上最多显示5页
+        num_pages = paginator.num_pages
+        # 1.总页数小于5页,页面上显示所有页码
+        if num_pages < 5:
+            pages = range(1, num_pages+1)
+        # 2.如果当前页是前3页显示前5页
+        elif page <= 3:
+            pages = range(1, 6)
+        # 3.如果当前页面是后3页显示后5页
+        elif num_pages - page <= 2:
+            pages = range(num_pages-4, num_pages+1)
+        else:
+            pages = range(page-2, page+3)
+
+
+        # 获取新品信息
+        new_skus = GoodsSKU.objects.all().order_by("-create_time")[:2]
+
+        # 获取购物车信息
+        user = request.user
+        cart_count = 0
+        if user.is_authenticated:
+            # 设置查询键
+            cart_key = "cart_%d" % user.id
+
+            # 通过django-redis的get_redis_connection()方法连接redis数据库
+            conn = get_redis_connection("default")
+
+            # 查询数据库中购物车种类
+            cart_count = conn.hlen(cart_key)
+            # 拼接上下文
+        context = {
+            "type": type, "types": types,
+            "pages": pages, 'skus_page': skus_page,
+            "new_skus": new_skus, "sort": sort,
+            "cart_count": cart_count,
+            }
+        return render(request, "list.html", context)
+
+
+
+
+
+
+
+
+
+
+
+

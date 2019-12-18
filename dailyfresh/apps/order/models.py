@@ -8,6 +8,27 @@ from db.base_model import BaseModel
 class OrderInfo(BaseModel):
     """订单信息模型类"""
 
+    # 创建参数方便验证
+    PAY_METHODS = {
+        '1': '货到付款',
+        '2': '微信支付',
+        '3': '支付宝',
+        '4': '银联支付',
+    }
+
+    ORDER_STATUS_ENUM = {
+        1: '待支付',
+        2: '待发货',
+        3: '待收货',
+        4: '待评价',
+        5: '已完成',
+    }
+
+    PAY_METHOD_ENUM = {
+        "CASH": 1,
+        "ALIPAY": 2,
+    }
+
     PAY_METHOD_CHOICES = (
         (1, '货到付款'),
         (2, '微信支付'),
