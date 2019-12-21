@@ -52,7 +52,7 @@ class OrderInfo(BaseModel):
     total_price = models.DecimalField(max_digits=10, decimal_places=2, verbose_name='商品总价')
     transit_price = models.DecimalField(max_digits=10, decimal_places=2, verbose_name='运费')
     order_status = models.SmallIntegerField(default=1, choices=ORDER_STATUS_CHOICES, verbose_name='订单状态')
-    trade_no = models.CharField(max_length=20, default='', verbose_name='支付编号')
+    trade_no = models.CharField(max_length=50, default='', verbose_name='支付编号')
 
     class Meta:
         db_table = 'df_order_info'

@@ -1,13 +1,16 @@
 
 {% extends 'base_user_center.html' %}
+{% load staticfiles %}
 
 {% block right_content %}
 <div class="right_content clearfix">
+                {% csrf_token %}
 				<h3 class="common_title2">全部订单</h3>
+
                 {% for order in skus_page %}
                 <ul class="order_list_th w978 clearfix">
 					<li class="col01">{{ order.create_time }}</li>
-					<li class="col02">订单号：{{ order.id }}</li>
+					<li class="col02">订单号：{{ order.order_id }}</li>
 					<li class="col02 stress">{{ order.order_status_name }}</li>
 				</ul>
 
@@ -29,7 +32,7 @@
 
 							<td width="15%">{{ order.total_price | add:order.transit_price }}(含运费:{{ order.transit_price }})元</td>
 							<td width="15%">{{ order.order_status_name }}</td>
-							<td width="15%"><a href="#" class="oper_btn">去付款</a></td>
+							<td width="15%"><a href="#" status="{{ order.order_status }}" order_id={{ order.order_id }}  class="oper_btn">去付款</a></td>
 						</tr>
 					</tbody>
 				</table>
@@ -55,4 +58,65 @@
 
 				</div>
 		</div>
+{% endblock %}
+
+{% block bottomfiles %}
+    <script src="{% static 'js/jquery-1.12.4.min.js' %}"></script>
+    <script>
+    // 获取支付状态返回对应的链接内容
+    $(".oper_btn").each(function () {
+        // 获取订单状态   并返回相应的状态信息
+        let status = $(this).attr("status");
+        if (status == 1){
+            $(this).text("去支付");
+        }else if (status == 4){
+            $(this).text("去评价");
+            } else if (status == 5){
+                $(".oper_btn").text("已完成")
+        }
+    });
+    $(".oper_btn").click(function () {
+        // 进行支付
+        // 获取订单id
+        let order_id = $(this).attr("order_id");
+        // 获取订单状态
+        let status = $(this).attr("status");
+        // 获取csrf
+        let csrf = $("input[name='csrfmiddlewaretoken']").val();
+        // 组织参数
+        parmes = {"order_id": order_id, "csrfmiddlewaretoken":csrf};
+        // 获取支付状态
+        if (status == 1){
+                // 使用ajax发起post请求
+                $.post("/order/pay/", parmes, function (data) {
+                    if (data.res == 0) {
+                        // alert(order_id)
+                        // 引导用户跳转到支付宝支付页面
+                        window.open(data.response);
+                        // 使用post请求来告诉用户支付情况
+                        $.post("/order/checked/", parmes, function (data) {
+                            if (data.res == 0) {
+                                // 订单成功刷新页面,弹出提示
+                                location.reload();
+                                alert(data.message)
+                            } else {
+                                alert(data.error_message)
+                            }
+
+                        });
+                    } else {
+                        // 如果后端出现错误,弹出错误
+                        alert(data.error_message)
+                    }
+                });
+            }
+        else if (status == 4) {
+            // 绑定点击事件
+                location.href = "/order/comment/" + order_id
+            }
+        else if(status == 5){
+            }
+    });
+
+    </script>
 {% endblock %}

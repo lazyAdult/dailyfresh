@@ -1,0 +1,63 @@
+
+{% extends 'base_user_center.html' %}
+{% load staticfiles %}
+
+{% block right_content %}
+    <form method="post" action="{% url 'order:comment' order.order_id %}">
+    {% csrf_token %}
+    <div class="right_content clearfix">
+        <h3 class="common_title2">订单评价:</h3>
+        <div style="background-color: #eeeeee">
+        <input type="hidden" name="total_count" value="{{ order.order_skus | length }}">
+        <ul class="order_list_th w978 clearfix">
+            <li class="col01">{{ order.create_time }}</li>
+            <li class="col02">订单号：{{ order.order_id }}</li>
+            <li class="col02 stress">{{ order.status_name }}</li>
+        </ul>
+        {% for order_sku in order.order_skus %}
+        <table class="order_list_table w980">
+
+            <tbody>
+                <tr>
+                    <td width="80%">
+
+                        <ul class="order_goods_list clearfix">
+                            <li class="col01"><img src="{{ order_sku.sku.image.url }}"></li>
+                            <li class="col02">{{ order_sku.sku.name }}<em>{{ order_sku.price }}元/{{ order_sku.sku.unite }}</em></li>
+                        </ul>
+
+                    </td>
+                    <td width="20%">{{ order_sku.amount }}元</td>
+                </tr>
+            </tbody>
+            </table>
+            <br>
+
+            <div style="padding-left: 20px;">
+                <input type="hidden" name="order_id" value="{{ order.order_id }}">
+                <input type="hidden" name="sku_{{ forloop.counter }}" value="{{ order_sku.id }}">
+                <lable style="vertical-align: top;font-size: 16px;font-weight: bold">评价内容:</lable>
+                <textarea  style="width: 400px; height: 60px;" name="comment_{{ forloop.counter }}"></textarea>
+            </div>
+            <br>
+            {% endfor %}
+        </div>
+        <br>
+            <input type="submit"  value="提交" style="width: 80px;height: 40px;color: #fff;background-color: #37ab40;
+                                                border-radius: 5px;margin-left: 88px">
+
+        </div>
+        </form>
+
+
+
+
+{% endblock %}
+
+{% block bottomfiles %}
+    <script src="{% static 'js/jquery-1.12.4.min.js' %}"></script>
+    <script>
+
+
+    </script>
+{% endblock %}

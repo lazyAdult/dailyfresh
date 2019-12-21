@@ -197,7 +197,7 @@ DEFAULT_FILE_STORAGE = "utils.fdfs.storage.FfdsStorage"
 FDFS_CLIENT_CONF = './utils/fdfs/client.conf'
 
 # 配置自定义文件存储配置中设置存储在服务器上nginx的IP和端口号
-FDFS_URL = 'http://192.168.1.17:8888/'
+FDFS_URL = 'http://192.168.1.24:8888/'
 
 
 # 全文检索框架的配置(haystack)

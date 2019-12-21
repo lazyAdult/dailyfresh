@@ -301,7 +301,7 @@
     // 删除商品
     $(".cart_list_td").children(".col08").children("a").click(function () {
         // 获取后端需要的商品id
-        sku_id = $(this).parents("ul").find(".num_show").attr("sku_id")
+        sku_id = $(this).parents("ul").find(".num_show").attr("sku_id");
         //获取csrf
         csrf = $("input[name='csrfmiddlewaretoken']").val()
         // 组织参数
@@ -312,7 +312,7 @@
         $.post("/cart/delete/", params, function (data) {
             if (data.res == 3){
                 // 删除成功,删除页面上商品所在的url
-                sku_ul.remove()
+                sku_ul.remove();
                 //获取选中的ul的选中状态
                 is_checked = sku_ul.find(":checkbox").prop("checked");
                 // 判断是否被选中

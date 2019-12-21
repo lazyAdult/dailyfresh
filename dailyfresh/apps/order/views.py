@@ -1,5 +1,19 @@
+import json
+import os
+import time
 from datetime import datetime
 
+from alipay.aop.api.AlipayClientConfig import AlipayClientConfig
+from alipay.aop.api.DefaultAlipayClient import DefaultAlipayClient
+from alipay.aop.api.domain.AlipayTradeAppPayModel import AlipayTradeAppPayModel
+from alipay.aop.api.domain.AlipayTradePagePayModel import AlipayTradePagePayModel
+from alipay.aop.api.domain.AlipayTradeQueryModel import AlipayTradeQueryModel
+from alipay.aop.api.domain.SettleDetailInfo import SettleDetailInfo
+from alipay.aop.api.domain.SettleInfo import SettleInfo
+from alipay.aop.api.domain.SubMerchant import SubMerchant
+from alipay.aop.api.request.AlipayTradeAppPayRequest import AlipayTradeAppPayRequest
+from alipay.aop.api.request.AlipayTradePagePayRequest import AlipayTradePagePayRequest
+from alipay.aop.api.request.AlipayTradeQueryRequest import AlipayTradeQueryRequest
 from django.db import transaction
 from django.http import JsonResponse
 from django.shortcuts import render, redirect
@@ -12,6 +26,7 @@ from django_redis import get_redis_connection
 from apps.goods.models import GoodsSKU
 from apps.order.models import OrderInfo, OrderGoods
 from apps.user.models import Address
+from dailyfresh import settings
 from utils.mixin import LoginRequiredMixin
 
 
@@ -277,12 +292,16 @@ class OrderCommitHandle(View):
                     origin_stock = sku.stock
                     new_stock = origin_stock - int(count)
                     new_sales = sku.stock + int(count)
-
+                    print(sku.stock)
+                    print(sku.sales)
 
                     # 使用乐观锁:使用乐观锁就是可以同时进行查询在在数据更新时进行判断,条件满足,订单成功,否则订单失败
-                    # 相当于sql语句 update df_goods_sku set stock=new_stock, sales=new_sales where id=sku_id and stock=origin_stock
-                    # 返回值是受影响的行数
+                    # 相当于sql语句 update df_goods_sku set stock=new_stock,
+                    #  sales=new_sales where id=sku_id and stock=origin_stock
+                    # 返回值是受影响的行数        todo:要放在创建数据库后面防止重复尝试添加数据库数据
                     res = GoodsSKU.objects.filter(id=sku.id, stock=origin_stock).update(stock=new_stock, sales=new_sales)
+                    print(sku.stock)
+                    print(sku.sales)
                     if res == 0:
                         # 回滚数据
                         # 尝试3次来验证是否可以下单
@@ -324,3 +343,261 @@ class OrderCommitHandle(View):
         conn.hdel(cart_kry, *sku_ids)
 
         return JsonResponse({"res": 8, "message": "创建成功"})
+
+
+# ajax post
+# 前端传递的参数:订单id(order_id)
+# /order/pay
+class OrderPayHandle(View):
+    """订单支付"""
+
+    def post(self, request):
+        """订单支付"""
+        # 判断用户是否登录
+        user = request.user
+        if not user.is_authenticated:
+            return JsonResponse({"res": 1, "error_message": "请先登录"})
+        # 接收参数
+        order_id = request.POST.get("order_id")
+        # 校验参数
+        if not order_id:
+            return JsonResponse({"res": 2, "error_message": "无效订单id"})
+        ordertext = OrderInfo.objects.get(order_id=order_id)
+        print(order_id, user)
+        print(ordertext.order_id, ordertext.user,ordertext.pay_method,ordertext.order_status)
+        try:
+            # 判断订单id是否是传入的订单id,用户是否为当前登录的用户,支付方法是否为3(支付宝支付),商品状态是否是未支付
+            order = OrderInfo.objects.get(order_id=order_id,
+                                          user=user, pay_method=3,
+                                          order_status=1)
+        except:
+            # 如果上述条件有一个不满足就终止订单
+            return JsonResponse({"res": 3, "error_message": "订单错误"})
+
+        # 业务处理:使用python sdk调用支付宝接口
+        # 初始化
+        def ali_pay():
+            # 为阿里支付实例化一个对象
+            alipay_config = AlipayClientConfig(sandbox_debug=True)
+            # 初始化各种配置信息
+            # 阿里提供的服务接口
+            alipay_config.server_url = "https://openapi.alipaydev.com/gateway.do"
+            # 申请沙箱环境的app_id
+            alipay_config.app_id = "2016101500689662"
+
+            # 商户的私钥
+            with open(os.path.join(settings.BASE_DIR, "apps/order/app_private_key.txt")) as f:
+                alipay_config.app_private_key = f.read()
+
+            # 阿里的公钥
+            with open(os.path.join(settings.BASE_DIR, "apps/order/alipay_public_key.txt")) as f:
+                alipay_config.alipay_public_key = f.read()
+
+            # 实例化一个支付对象并返回
+            alipay_client = DefaultAlipayClient(alipay_client_config=alipay_config)
+            return alipay_client
+
+        # 对照接口文档，构造请求对象
+        # 创建阿里支付的实例化对象
+        client = ali_pay()
+        # 为API生成一个模板对象初始化参数时使用
+        model = AlipayTradePagePayModel()
+        # 订单号
+        model.out_trade_no = order_id
+        # 需要支付的金额
+        model.total_amount = str(order.total_price)
+        # 商品的标题
+        model.subject = "天天生鲜%s" % order_id
+        # 商品的详细内容
+        model.body = "支付宝测试"
+        # 销售产品码,与支付宝签约商品的名称
+        model.product_code = "FAST_INSTANT_TRADE_PAY"
+        # 实例化一个请求对象
+        request = AlipayTradePagePayRequest(biz_model=model)
+        # 向阿里发出支付请求
+        response = client.page_execute(request, http_method="GET")
+        return JsonResponse({"res": 0, "response": response})
+
+
+# ajax post
+# 前端传递的参数:订单id(order_id)
+# /order/pay
+class OrderCheckedHandle(View):
+    """订单支付结果查询"""
+
+    def post(self, request):
+        # 判断用户是否登录
+        user = request.user
+        if not user.is_authenticated:
+            return JsonResponse({"res": 1, "error_message": "请先登录"})
+        # 接收参数
+        order_id = request.POST.get("order_id")
+        # 校验参数
+        if not order_id:
+            return JsonResponse({"res": 2, "error_message": "无效订单id"})
+        try:
+            # 判断订单id是否是传入的订单id,用户是否为当前登录的用户,支付方法是否为3(支付宝支付),商品状态是否是未支付
+            order = OrderInfo.objects.get(order_id=order_id,
+                                          user=user, pay_method=3,
+                                          order_status=1)
+        except:
+            # 如果上述条件有一个不满足就终止订单
+            return JsonResponse({"res": 3, "error_message": "订单错误"})
+
+        # 业务处理:使用python sdk调用支付宝接口
+        # 初始化
+        def ali_pay():
+            # 为阿里支付实例化一个对象
+            alipay_config = AlipayClientConfig(sandbox_debug=True)
+            # 初始化各种配置信息
+            # 阿里提供的服务接口
+            alipay_config.server_url = "https://openapi.alipaydev.com/gateway.do"
+            # 申请沙箱环境的app_id
+            alipay_config.app_id = "2016101500689662"
+
+            # 商户的私钥
+            with open(os.path.join(settings.BASE_DIR, "apps/order/app_private_key.txt")) as f:
+                alipay_config.app_private_key = f.read()
+
+            # 阿里的公钥
+            with open(os.path.join(settings.BASE_DIR, "apps/order/alipay_public_key.txt")) as f:
+                alipay_config.alipay_public_key = f.read()
+
+            # 实例化一个支付对象并返回
+            alipay_client = DefaultAlipayClient(alipay_client_config=alipay_config)
+            return alipay_client
+
+        # 创建一个实例化对象
+        client = ali_pay()
+        # 初始化各种配置信息
+        # 完成接口调用
+        model = AlipayTradeQueryModel()
+        # 获取订单号
+        model.out_trade_no = order_id
+        # 组织参数 实例化一个请求对象
+        request = AlipayTradeQueryRequest(biz_model=model)
+
+        # response返回一个字典
+        # {"code": "10000", "msg": "Success",
+        #  "buyer_logon_id": "lbt***@sandbox.com",
+        # "buyer_pay_amount": "0.00",
+        #  "buyer_user_id": "2088102179931812",
+        #  "buyer_user_type": "PRIVATE",
+        #  "invoice_amount": "0.00",
+        #  "out_trade_no": "201912182026581",
+        # "point_amount": "0.00",
+        #  "receipt_amount": "0.00",
+        #  "send_pay_date": "2019-12-19 12:11:52",
+        # "total_amount": "33.60",
+        # "trade_no": "2019121922001431811000137543",
+        # "trade_status": "TRADE_SUCCESS"}
+
+        while True:
+            # 返回应答
+            response = client.execute(request)
+            # 将字符串转换为字典
+            response = json.loads(response)
+            # 获取当前支付提示码
+            code = response.get("code")
+            # 获取当前支付状态
+            trade_status = response.get("trade_status")
+            # 判断支付情况
+            if code == "10000" and trade_status == "TRADE_SUCCESS":
+                # 支付成功
+                # 获取支付宝交易号
+                trade_no = response.get("trade_no")
+                # 更新订单状态
+                order.order_status = 4
+                order.trade_no = trade_no
+                order.save()
+                # 返回结果
+                return JsonResponse({"res": 0, "message": "支付成功"})
+            # 业务处理时可能一时请求业务处理失败,需要进行重复验证在等待状态是正在交易等待卖家付款
+            elif code == "10000" or code == "40004":
+                # 这时需要跳过需要进一步的验证处理
+                import time
+                # 让程序休息5秒,同时也能缓解进程压力
+                time.sleep(5)
+                continue
+            else:
+                return JsonResponse({"res": 4, "error_message": "支付失败"})
+
+
+# 商品评论页面
+class OrderCommentHandle(LoginRequiredMixin, View):
+    """订单商品评论页面"""
+
+    def get(self, request, order_id):
+        # 获取当前用户
+        user = request.user
+        # 判断是否为空
+        if not order_id:
+            return redirect(reverse("user:order", args=str(1)))
+        # 判断订单是否存在
+        try:
+            order = OrderInfo.objects.get(user=user,
+                                  order_id=order_id)
+        except OrderInfo.DoesNotExist:
+            # 遍历订单获取当前订单的所有商品信息
+            return redirect(reverse("user:order", args=str(1)))
+        # 动态给订单对象添加属性
+        order.status_name = OrderInfo.ORDER_STATUS_ENUM[order.order_status]
+        # 查询订单商品的信息
+        order_skus = OrderGoods.objects.filter(order_id=order_id)
+        # 查询订单中的所有商品
+        for order_sku in order_skus:
+            # 计算商品的小计
+            amount = order_sku.count * order_sku.price
+            # 动态给商品添加小计
+            order_sku.amount = amount
+
+        # 动态给order_sku增加属性order_skus
+        order.order_skus = order_skus
+
+        return render(request, "goods_order_comment.html", {"order": order})
+
+        # else:
+        #     return redirect(reverse("user:order", args=str(1)))
+
+    # 提交评论
+    def post(self, request, order_id):
+        # 获取提交请求
+        user = request.user
+        # 判断是否传入order_id参数
+        if not order_id:
+            return redirect(reverse("user:order", args=str(1)))
+        # 判断获取的订单id和参数传入的订单id是否相同
+        post_order_id = request.POST.get("order_id")
+        # 判断路径参数是否与订单id相同
+        if order_id != post_order_id:
+            return redirect(reverse("user:order", args=str(1)))
+        try:
+            # 获取订单对象
+            order = OrderInfo.objects.get(order_id=order_id, user=user)
+        except OrderInfo.DoesNotExist:
+            return redirect(reverse("user:order", args=str(1)))
+        # 获取订单商品数
+        total_count = request.POST.get("total_count")
+        total_count = int(total_count)
+        # 遍历订单数 取出对应的值
+        for i in range(1, total_count+1):
+            # 根据前端获取的商品id
+            sku_id = request.POST.get("sku_%d" % i)
+            # 尝试获取商品信息
+            try:
+                order_goods = OrderGoods.objects.get(id=sku_id, order=order)
+            except OrderGoods.DoesNotExist:
+                # 如果没有匹配成功跳过
+                continue
+            # 获取评论内容
+            goods_comment = request.POST.get("comment_%d" % i)
+            print(goods_comment)
+            # 将内容赋值给数据库对应的键
+            order_goods.comment = goods_comment
+            # 保存内容到数据库
+            order_goods.save()
+        # 修改订单状态 修改为已完成
+        order.order_status = 5
+        # 保存到数据库
+        order.save()
+        return redirect(reverse("user:order", args=str(1)))

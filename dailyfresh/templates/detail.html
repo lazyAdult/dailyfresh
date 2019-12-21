@@ -73,11 +73,11 @@
 
 		<div class="r_wrap fr clearfix">
 			<ul class="detail_tab clearfix">
-				<li class="active">商品介绍</li>
-				<li>评论</li>
+				<li class="active" id="goods_introduce">商品介绍</li>
+				<li id="goods_comment">评论</li>
 			</ul>
 
-			<div class="tab_content">
+			<div class="tab_content" id="goods_detail">
 				<dl>
 					<dt>商品详情：</dt>
                     {#   {% autoescape on (打开) off (关闭)%}{% endautoescape %}#}
@@ -85,7 +85,7 @@
 					<dd>{{ sku.goods_spu.detail|safe }}</dd>
 				</dl>
 			</div>
-            <div class="tab_content">
+            <div class="tab_content" id="comment_content" style="display: none">
                 {% for order in sku_order %}
                 <dl>
 					<dt>评论时间:{{ order.update_time }}&nbsp;&nbsp;用户名:{{ order.order.user.username }}</dt>
@@ -107,6 +107,22 @@
 {% block bottomfiles %}
 	<script type="text/javascript" src="{% static 'js/jquery-1.12.4.min.js' %}"></script>
 	<script type="text/javascript">
+        //点击评论时,显示评论详情
+        $("#goods_comment").click(function () {
+           $(this).addClass("active");
+           $("#goods_introduce").removeClass("active");
+           $("#goods_detail").hide();
+           $("#comment_content").show();
+        });
+        // 点击商品时,显示商品详情
+        $("#goods_introduce").click(function () {
+           $(this).addClass("active");
+           $("#goods_comment").removeClass("active");
+           $("#goods_detail").show();
+           $("#comment_content").hide();
+        });
+
+
         update_goods_amount();
         function update_goods_amount (){
             // 获取商品价格

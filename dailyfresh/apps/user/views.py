@@ -253,7 +253,7 @@ class UserOrderView(LoginRequiredMixin, View):
         """显示用户订单信息信息"""
         # 获取用户订单
         user = request.user
-        orders = OrderInfo.objects.filter(user=user)
+        orders = OrderInfo.objects.filter(user=user).order_by("-create_time")
 
         # 遍历订单获取商品信息
         for order in orders:
@@ -309,7 +309,6 @@ class UserOrderView(LoginRequiredMixin, View):
             "pages": pages,
         }
         return render(request, "user_center_order.html", context)
-
 
 
 class AddressView(LoginRequiredMixin, View):

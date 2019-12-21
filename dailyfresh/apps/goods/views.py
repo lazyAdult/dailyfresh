@@ -180,7 +180,6 @@ class ListHandle(View):
         else:
             pages = range(page-2, page+3)
 
-
         # 获取新品信息
         new_skus = GoodsSKU.objects.all().order_by("-create_time")[:2]
 
