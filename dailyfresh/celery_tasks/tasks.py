@@ -8,14 +8,13 @@ from dailyfresh import settings
 
 # 重置文件
 import os
+# 导入django
+import django
 #
-# from django.core.wsgi import get_wsgi_application
-#
-# os.environ.setdefault("DJANGO_SETTINGS_MODULE", "dailyfresh.settings")
-#
-# application = get_wsgi_application()
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "dailyfresh.settings")
 
-
+# django初始化
+# django.setup()
 
 # 导入的模型类文件一定要在初始化方法下部,不然就会报错
 from apps.goods.models import GoodsType, IndexGoodsBanner, IndexPromotionBanner, IndexTypeGoodsBanner

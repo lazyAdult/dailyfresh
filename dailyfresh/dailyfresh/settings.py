@@ -24,12 +24,12 @@ sys.path.insert(0, os.path.join(BASE_DIR, "apps"))
 # See https://docs.djangoproject.com/en/2.0/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'rxnr0nv7aw+95hqh-+tymy)(5a!1dl!bty(n9%)l0%#z#=p3j$'
+SECRET_KEY = 'rxnr0hqh-+tymy)(5a!1dl!bty(n9%)l0%#z#=p3j$'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = False
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ["*"]
 
 
 # Application definition
@@ -91,7 +91,7 @@ DATABASES = {
         'ENGINE': 'django.db.backends.mysql',
         'NAME': 'dailyfresh',
         'USER': 'root',
-        'PASSWORD': 'mysql1234',
+        'PASSWORD': 'msql34',
         'PORT': '3306',
         'HOST': '127.0.0.1'
     }
@@ -140,6 +140,8 @@ USE_TZ = False
 
 STATIC_URL = '/static/'
 STATICFILES_DIRS = [os.path.join(BASE_DIR, "static"), ]
+# 静态文件的收集路径
+STATIC_ROOT = "/var/www/dailyfresh/static"
 
 # 富文本编辑器配置
 TINYMCE_DEFAULT_CONFIG = {
@@ -157,11 +159,11 @@ EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = 'smtp.163.com'
 EMAIL_PORT = 25
 # 发送邮件的邮箱
-EMAIL_HOST_USER = '18638321931@163.com'
+EMAIL_HOST_USER = '1863834213@163.com'
 # 邮箱中设置的客户端授权密码
-EMAIL_HOST_PASSWORD = 'tang195810'
+EMAIL_HOST_PASSWORD = 'password'
 # 收件人看到的发件人
-# DEFAULT_FROM = '天天生鲜<18638321931@163.com>'
+# DEFAULT_FROM = '天天生鲜<1863834213@163.com>'
 
 # 设置django的redis缓存
 CACHES = {
@@ -197,7 +199,7 @@ DEFAULT_FILE_STORAGE = "utils.fdfs.storage.FfdsStorage"
 FDFS_CLIENT_CONF = './utils/fdfs/client.conf'
 
 # 配置自定义文件存储配置中设置存储在服务器上nginx的IP和端口号
-FDFS_URL = 'http://192.168.1.24:8888/'
+FDFS_URL = 'http://192.168.1.17:8888/'
 
 
 # 全文检索框架的配置(haystack)
